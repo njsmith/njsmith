@@ -4,7 +4,7 @@ tic
 
 % Use a repeatable random stream for each subject
 r = RandStream('mt19937ar', 'seed', subjnum);
-outpath = sprintf('resp-%03i.txt', subjnum);
+outpath = sprintf('resp-%03i.mat', subjnum);
 
 % Set Up Stuff
 params.stdDelayTime  = 0.200;
@@ -20,8 +20,8 @@ params.readyScreenDuration = 1.000;
 params.minResponseTime = 0.050;
 
 trialsPerPractise = 30;
-trialsPerBlock = 50;
-numberOfBlocks = 5;
+trialsPerBlock = 60;
+numberOfBlocks = 1;
 wrapChars = 50;
 
 % points
