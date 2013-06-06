@@ -19,10 +19,10 @@ params.readyScreenDuration = 1.000;
 % If their RT is <50ms then they jumped the gun.
 params.minResponseTime = 0.050;
 
-trialsPerPractise = 30;
-trialsPerBlock = 60;
-numberOfBlocks = 1;
-wrapChars = 50;
+params.trialsPerPractise = 30;
+params.trialsPerBlock = 60;
+params.numberOfBlocks = 1;
+params.wrapChars = 70;
 
 % points
 params.penaltyPoints = -1000;
@@ -34,9 +34,35 @@ params.maxScoreTime = 0.425;
 params.cutoffQuantile = 0.33;
 params.chanceOfSpeedyTrial = 0.25;
 params.cutoffTime = NaN; % to be set after practise trials
-params.bonusPoints = 500;
+params.bonusSuccessPoints = 500;
+params.bonusFailurePoints = -100;
 % set background grey level for stimuli Screen
-bkgrndGreyLevel = 100;
+% This is also used in get-ready.png, so if you change one you should
+% change the other.
+params.bkgrndGreyLevel = 100;
+params.textColor = [0, 0, 0];
+
+instructions1 = [ ...
+    'In this experiment, your job is very simple. When you see "Go!", ' ...
+    'you should press the button. ' ...
+    'You should do this AS QUICKLY AS POSSIBLE. The faster you are, the higher your score. ' ...
+    'The higher your score, the more money you will make at the end!\n\n' ...
+    'But, be careful: if you press it BEFORE the computer says "Go!", you will lose a LOT of points! ' ...
+    'Be as fast as you can once you see "Go!", but don''t be too fast!\n\n' ...
+    'We''ll start with some practice; your score here won''t count.'
+    ];
+
+instructions2 = [ ...
+    'Now to make things more interesting we''ll add BONUS ROUNDS. ' ...
+    'In a bonus round, there is a deadline. This deadline is ALWAYS THE SAME. ' ...
+    'If you''re fast enough to beat the deadline, ' ...
+    'you''ll get %i points. But if you''re too slow, you get %i points! ' ...
+    'Bonus rounds have a special "Get ready!" screen, so it will always be obvious ' ...
+    'which rounds are bonus rounds.\n\n' ...
+    'This next block will let you practice; your score here won''t count.' ...
+    ];
+
+instructions2 = sprintf(instructions2, params.bonusSuccessPoints, params.bonusFailurePoints);
 
 % To get input device: GetMouseIndices, GetKeyboardIndices,
 % GetGamepadIndices.
@@ -45,10 +71,8 @@ input_buttons = zeros(256, 1);
 if strcmp(computer, 'test')
     % Default -- keyboard
     % For some reason nothing else works on my (njs's) laptop :-( :-(
-    % But hopefully on OS-X things will be better?
     input_device = [];
-    % space bar
-    input_buttons(kbname('space')) = 1;
+    input_buttons(KbName('space')) = 1;
 elseif strcmp(computer, 'lab-gamepad')
     input_device = Gamepad('GetGamepadIndicesFromNames', 'Logitech Dual Action');
     input_buttons([5, 6]) = 1;
@@ -70,7 +94,7 @@ try
     %Screen('Preference', 'SkipSyncTests', 0);
 
     HideCursor();
-    stimuliScrn = Screen('OpenWindow', 0, bkgrndGreyLevel);
+    stimuliScrn = Screen('OpenWindow', 0, params.bkgrndGreyLevel);
     [w, h] = Screen('WindowSize', stimuliScrn);
     ifi = Screen('GetFlipInterval', stimuliScrn);
     Screen('Flip', stimuliScrn);
@@ -80,39 +104,32 @@ try
     t_ready_bonus = Screen('MakeTexture', stimuliScrn, imread('get-ready-bonus-round.png'));
     t_go = Screen('MakeTexture', stimuliScrn, imread('go.png'));
     t_too_early = Screen('MakeTexture', stimuliScrn, imread('too-early.png'));
-    t_blank = Screen('MakeTexture', stimuliScrn, bkgrndGreyLevel*ones(1024));
     
     disp('*starting experiment*');
     KbQueueStart(input_device);
     results = [];
     
-    textScreen('Lets start with some practice! (XX)', 'wait');
-    results = [results RunBlock(r, 1, 1, 2, trialsPerPractise, 0)];
+    textScreen(instructions1, 'wait');
+    results = [results RunBlock(r, 1, 1, 2, params.trialsPerPractise, 0)];
     
     % calculate median response time
     disp('trying to get deadline response time');
     params.cutoffTime = my_quantile(without_nan([results.resp_latency]), params.cutoffQuantile);
     params.cutoffTime
-    % XX show instructions about bonus trials
-    textScreen('Now we''ll add bonus trials! (XX)', 'wait');
-    results = [results RunBlock(r, 1, 2, 2, trialsPerPractise, 1)];
-    textScreen('Any questions? Press any button when you''re ready to start the real experiment.', 'wait');
+    textScreen(instructions2, 'wait');
+    results = [results RunBlock(r, 1, 2, 2, params.trialsPerPractise, 1)];
+    textScreen('Any questions? Now''s a good time to ask them.\n\nOtherwise, press any button when you''re ready to start the real experiment.', 'wait');
     %% start experiment for real!
-    for block = 1:numberOfBlocks
-        results = [results RunBlock(r, 0, block, numberOfBlocks, trialsPerBlock, 1)];
+    for block = 1:params.numberOfBlocks
+        results = [results RunBlock(r, 0, block, params.numberOfBlocks, params.trialsPerBlock, 1)];
         save(outpath, '-v6', 'subjnum', 'results', 'params');
     end % end of a block
-    %% thank you screen
-    WaitSecs(0.1);
-    Screen('DrawTexture',stimuliScrn,t_blank);
     non_practice_trials = [results.isPractice] == 0;
     all_points = [results.points];
     total_score = sum(all_points(non_practice_trials));
-    DrawFormattedText(stimuliScrn, ['Thank you for taking part!\n ' int2str(total_score) ' points in total!!!'], 'center', 'center');
-    Screen('Flip',stimuliScrn,0);
-    KbQueueWait(input_device);
     fprintf('Total score: %i\n', total_score);
     save(outpath, '-v6', 'subjnum', 'total_score', 'results', 'params');
+    textScreen('That''s all, thanks! Please notify the experimenter that you are done.', 'wait');
     
     KbQueueRelease(input_device);
     Screen('CloseAll');
@@ -157,13 +174,12 @@ toc;
 
     function textScreen(text, how_long)
         KbQueueFlush(input_device);
-        Screen('DrawTexture', stimuliScrn, t_blank);
         if strcmp(how_long, 'wait')
             extra_text = '\n\nPress button to continue.';
         else
             extra_text = '';
         end
-        DrawFormattedText(stimuliScrn, [text extra_text], 'center', 'center');
+        DrawFormattedText(stimuliScrn, [text extra_text], 'center', 'center', params.textColor, params.wrapChars);
         Screen('Flip', stimuliScrn);
         if strcmp(how_long, 'wait')
             KbQueueWait(input_device);
@@ -172,12 +188,10 @@ toc;
         end
     end
 
-    function m = my_nanmedian(x)
-        m = median(x(isfinite(x)));
-    end
     function y = without_nan(x)
         y = x(isfinite(x));
     end
+
     function p = my_quantile(x, q)
         x = sort(x, 'ascend');
         n = length(x);
@@ -202,7 +216,6 @@ toc;
         KbQueueFlush(input_device);
         
         % now show blank screen with moving line until signal
-        Screen('DrawTexture',stimuliScrn,t_blank);
         targdelay = params.stdDelayTime * randn(r) + params.meanDelayTime;
         targdelay = max(targdelay, params.minDelayTime);
         targdelay = min(targdelay, params.maxDelayTime);
@@ -216,18 +229,17 @@ toc;
         targetTime = trialResults.foreperiodonset.stimon + targdelay;
         progressBarLimit = trialResults.foreperiodonset.stimon + params.maxDelayTime;
         jumped_gun = 0;
-        response_time = NaN;
+        resp_time = NaN;
         while 1
             [pressed, firstPressInfo] = KbQueueCheck(input_device);
             if pressed
                 jumped_gun = 1;
                 presses = find(firstPressInfo);
-                response_time = min(firstPressInfo(presses));
+                resp_time = min(firstPressInfo(presses)); %#ok<FNDSB>
                 break;
             end
             % Draw vertical line
             now = GetSecs();
-            Screen('DrawTexture', stimuliScrn, t_blank);
             x = (progressBarLimit - now) / (params.maxDelayTime);
             Screen('DrawLines', stimuliScrn, [w*(1-x), w*(1 - x); 0, h], 3);
             Screen('Flip', stimuliScrn);
@@ -240,10 +252,10 @@ toc;
             Screen('DrawTexture', stimuliScrn, t_go);
             [stim_vbl stim_stimon stim_flip stim_missed] = Screen('Flip', stimuliScrn);
             % wait for button press and get response time
-            response_time = KbQueueWait(input_device);
-            RT = response_time - stim_stimon;
-            points = GetPoints(RT, trialType, params);
-            if RT < params.minResponseTime
+            resp_time = KbQueueWait(input_device);
+            resp_latency = resp_time - stim_stimon;
+            points = GetPoints(resp_latency, trialType, params);
+            if resp_latency < params.minResponseTime
                 jumped_gun = 1;
             end
         else
@@ -251,7 +263,7 @@ toc;
             stim_stimon = NaN;
             stim_flip = NaN;
             stim_missed = NaN;
-            RT = NaN;
+            resp_latency = NaN;
         end
         if jumped_gun
             % user was too early!
@@ -269,8 +281,8 @@ toc;
         trialResults.go_onset.flip = stim_flip;
         trialResults.go_onset.missed = stim_missed;
         
-        trialResults.resp_time = response_time;
-        trialResults.resp_latency = RT;
+        trialResults.resp_time = resp_time;
+        trialResults.resp_latency = resp_latency;
         trialResults.jumped_gun = jumped_gun;
         trialResults.points = points;
 
