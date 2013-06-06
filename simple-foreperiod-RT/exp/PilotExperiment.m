@@ -19,9 +19,9 @@ params.readyScreenDuration = 1.000;
 % If their RT is <50ms then they jumped the gun.
 params.minResponseTime = 0.050;
 
-trialsPerPractise = 3;
-trialsPerBlock = 3;
-numberOfBlocks = 2;
+trialsPerPractise = 30;
+trialsPerBlock = 50;
+numberOfBlocks = 5;
 wrapChars = 50;
 
 % points
