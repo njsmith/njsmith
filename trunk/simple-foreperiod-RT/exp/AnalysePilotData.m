@@ -1,2 +1,0 @@
-R = csvread('resp.txt');
-
