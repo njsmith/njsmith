@@ -4,7 +4,7 @@ tic
 
 % Use a repeatable random stream for each subject
 r = RandStream('mt19937ar', 'seed', subjnum);
-outpath = sprintf('resp-%03i.mat', subjnum);
+outpath = sprintf('data/resp-%03i.mat', subjnum);
 
 % Set Up Stuff
 params.stdDelayTime  = 0.200;
@@ -44,7 +44,7 @@ bkgrndGreyLevel = 100;
 input_buttons = zeros(256, 1);
 if strcmp(computer, 'test')
     % Default -- keyboard
-    % For some reason nothing else works :-( :-(
+    % For some reason nothing else works on my (njs's) laptop :-( :-(
     % But hopefully on OS-X things will be better?
     input_device = [];
     % space bar
