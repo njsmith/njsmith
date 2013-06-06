@@ -19,8 +19,8 @@ params.readyScreenDuration = 1.000;
 % If their RT is <50ms then they jumped the gun.
 params.minResponseTime = 0.050;
 
-params.trialsPerPractise = 30;
-params.trialsPerBlock = 60;
+params.trialsPerPractise = 3;
+params.trialsPerBlock = 6;
 params.numberOfBlocks = 1;
 params.wrapChars = 70;
 
@@ -57,8 +57,8 @@ instructions2 = [ ...
     'In a bonus round, there is a deadline. This deadline is ALWAYS THE SAME. ' ...
     'If you''re fast enough to beat the deadline, ' ...
     'you''ll get %i points. But if you''re too slow, you get %i points! ' ...
-    'Bonus rounds have a special "Get ready!" screen, so it will always be obvious ' ...
-    'which rounds are bonus rounds.\n\n' ...
+    'It will always be obvious which rounds are bonus rounds, because they ' ...
+    'have a special "Get ready!" screen.\n\n' ...
     'This next block will let you practice; your score here won''t count.' ...
     ];
 
@@ -295,7 +295,11 @@ toc;
         points = (100/params.maxScoreTime) * max(0, params.maxScoreTime - respTime);
 
         if strcmp(trialType, 'bonus')
-            points = params.bonusPoints * (respTime < params.cutoffTime);
+            if respTime < params.cutoffTime
+                points = params.bonusSuccessPoints;
+            else
+                points = params.bonusFailurePoints;
+            end
         end
 
         points = round(points);
