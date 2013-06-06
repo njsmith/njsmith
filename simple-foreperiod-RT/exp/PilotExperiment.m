@@ -53,7 +53,7 @@ elseif strcmp(computer, 'lab-gamepad')
     input_device = Gamepad('GetGamepadIndicesFromNames', 'Logitech Dual Action');
     input_buttons([5, 6]) = 1;
     Screen('Preference', 'DefaultFontSize', 36);
-    %Priority(9);
+    Priority(9);
 else
     error('unknown computer');
 end
@@ -67,8 +67,9 @@ KbQueueCreate(input_device, input_buttons);
 
 try
     % create stimuliScrn
-    Screen('Preference', 'SkipSyncTests', 0);
-    
+    %Screen('Preference', 'SkipSyncTests', 0);
+
+    HideCursor();
     stimuliScrn = Screen('OpenWindow', 0, bkgrndGreyLevel);
     [w, h] = Screen('WindowSize', stimuliScrn);
     ifi = Screen('GetFlipInterval', stimuliScrn);
@@ -115,9 +116,10 @@ try
     
     KbQueueRelease(input_device);
     Screen('CloseAll');
-    
+    ShowCursor();
     
 catch me
+    ShowCursor();
     KbQueueRelease(input_device);
     Screen('CloseAll');
     disp('error')
