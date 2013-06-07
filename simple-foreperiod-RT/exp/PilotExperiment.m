@@ -25,16 +25,17 @@ params.numberOfBlocks = 1;
 params.wrapChars = 70;
 
 % points
-params.penaltyPoints = -1000;
+% gun jump penalties
+params.penaltyPoints = -5000;
 params.penaltyTime = 5;
 % normal trials
-params.minRespTime  = 0.075;
-params.maxScoreTime = 0.425;
+params.normalScoreTimes = [180 250];
+params.normalScorePoints = [300 150];
 % speedy trials
 params.cutoffQuantile = 0.33;
 params.chanceOfSpeedyTrial = 0.25;
 params.cutoffTime = NaN; % to be set after practise trials
-params.bonusSuccessPoints = 500;
+params.bonusSuccessPoints = 1000;
 params.bonusFailurePoints = -100;
 % set background grey level for stimuli Screen
 % This is also used in get-ready.png, so if you change one you should
@@ -118,7 +119,9 @@ try
     params.cutoffTime
     textScreen(instructions2, 'wait');
     results = [results RunBlock(r, 1, 2, 2, params.trialsPerPractise, 1)];
-    textScreen('Any questions? Now''s a good time to ask them.\n\nOtherwise, press any button when you''re ready to start the real experiment.', 'wait');
+    textScreen(['Any questions? Now''s a good time to ask them.\n\n' ...
+        'Make sure you understand how the points work, because from now on, they''ll count for real!\n\n' ...
+        'Otherwise, press any button when you''re ready to start the real experiment.'], 'wait');
     %% start experiment for real!
     for block = 1:params.numberOfBlocks
         results = [results RunBlock(r, 0, block, params.numberOfBlocks, params.trialsPerBlock, 1)];
@@ -130,21 +133,17 @@ try
     fprintf('Total score: %i\n', total_score);
     save(outpath, '-v6', 'subjnum', 'total_score', 'results', 'params');
     textScreen('That''s all, thanks! Please notify the experimenter that you are done.', 'wait');
-    
-    KbQueueRelease(input_device);
-    Screen('CloseAll');
-    ShowCursor();
-    
+        
 catch me
-    ShowCursor();
-    KbQueueRelease(input_device);
-    Screen('CloseAll');
     disp('error')
     disp(me)
-    
 end
 
+KbQueueRelease(input_device);
+Screen('CloseAll');
+ShowCursor();
 Priority(0);
+
 toc;
 
     function blockResults = RunBlock(r, isPractice, blockNum, totalBlocks, trialCount, includeBonus)
@@ -289,17 +288,18 @@ toc;
     end
 
     function points = GetPoints(respTime, trialType, params)
-
-        respTime = max(0, respTime - params.minRespTime);
-
-        points = (100/params.maxScoreTime) * max(0, params.maxScoreTime - respTime);
-
-        if strcmp(trialType, 'bonus')
+        if strcmp(trialType, 'regular')
+            points = interp1(params.normalScoreTimes, params.normalScorePoints, ...
+                respTime, 'linear', 'extrap');
+            points = max(0, points);
+        elseif strcmp(trialType, 'bonus')
             if respTime < params.cutoffTime
                 points = params.bonusSuccessPoints;
             else
                 points = params.bonusFailurePoints;
             end
+        else
+            error(trialType);
         end
 
         points = round(points);
