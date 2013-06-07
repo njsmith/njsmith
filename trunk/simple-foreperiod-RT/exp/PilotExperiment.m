@@ -19,9 +19,9 @@ params.readyScreenDuration = 1.000;
 % If their RT is <50ms then they jumped the gun.
 params.minResponseTime = 0.050;
 
-params.trialsPerPractise = 3;
-params.trialsPerBlock = 6;
-params.numberOfBlocks = 1;
+params.trialsPerPractise = 60;
+params.trialsPerBlock = 60;
+params.numberOfBlocks = ;
 params.wrapChars = 70;
 
 % points
@@ -111,20 +111,20 @@ try
     results = [];
     
     textScreen(instructions1, 'wait');
-    results = [results RunBlock(r, 1, 1, 2, params.trialsPerPractise, 0)];
+    results = RunBlock(r, 1, 1, 2, params.trialsPerPractise, 0, results);
     
     % calculate median response time
     disp('trying to get deadline response time');
-    params.cutoffTime = my_quantile(without_nan([results.resp_latency]), params.cutoffQuantile);
+    params.cutoffTime = my_quantile(without_nan([results(end/2:end).resp_latency]), params.cutoffQuantile);
     params.cutoffTime
     textScreen(instructions2, 'wait');
-    results = [results RunBlock(r, 1, 2, 2, params.trialsPerPractise, 1)];
+    results = RunBlock(r, 1, 2, 2, params.trialsPerPractise, 1, results);
     textScreen(['Any questions? Now''s a good time to ask them.\n\n' ...
         'Make sure you understand how the points work, because from now on, they''ll count for real!\n\n' ...
         'Otherwise, press any button when you''re ready to start the real experiment.'], 'wait');
     %% start experiment for real!
     for block = 1:params.numberOfBlocks
-        results = [results RunBlock(r, 0, block, params.numberOfBlocks, params.trialsPerBlock, 1)];
+        results = RunBlock(r, 0, block, params.numberOfBlocks, params.trialsPerBlock, 1, results);
         save(outpath, '-v6', 'subjnum', 'results', 'params');
     end % end of a block
     non_practice_trials = [results.isPractice] == 0;
@@ -146,8 +146,7 @@ Priority(0);
 
 toc;
 
-    function blockResults = RunBlock(r, isPractice, blockNum, totalBlocks, trialCount, includeBonus)
-        blockResults = [];
+    function results = RunBlock(r, isPractice, blockNum, totalBlocks, trialCount, includeBonus, results)
         blockPoints = 0;
         for trial = 1:trialCount
             if includeBonus && (rand(r) < params.chanceOfSpeedyTrial)
@@ -155,20 +154,45 @@ toc;
             else
                 trialType = 'regular';
             end
-            trial_results = RunTrial(r, trialType, blockPoints);
-            trial_results.isPractice = isPractice;
-            trial_results.blockNum = blockNum;
-            trial_results.trialInBlock = trial;
-            blockPoints = blockPoints + trial_results.points;
-            blockResults = [blockResults trial_results];
+            trial_result = RunTrial(r, trialType, blockPoints);
+            trial_result.isPractice = isPractice;
+            trial_result.blockNum = blockNum;
+            trial_result.trialInBlock = trial;
+            blockPoints = blockPoints + trial_result.points;
+            results = [results trial_result]; %#ok<AGROW>
         end
         if isPractice
             pracString = ' practice';
+            totalString = '';
+            lastBlockString = '';
         else
             pracString = '';
+            if blockNum > 1
+                prev_score = BlockScore(results, isPractice, blockNum - 1);
+                lastBlockString = sprintf('On the previous block, you earned: %i points\n', prev_score);
+            else
+                lastBlockString = '';
+            end
+            totalString = sprintf('Your total so far: %i points\n', TotalScore(results));
         end
-        score = sum([blockResults.points]);
-        textScreen(sprintf('End of%s block %i (of %i). Score: %i\n\nTake a short break and stretch!', pracString, blockNum, totalBlocks, score), 'wait');
+        this_score = BlockScore(results, isPractice, blockNum);       
+        msg = sprintf(['That''s the end of%s block %i (of %i).\n' ...
+            'You earned: %i points\n%s%s' ...
+            'Take a short break and stretch!'], ...
+            pracString, blockNum, totalBlocks, this_score, lastBlockString, totalString);
+        textScreen(msg, 'wait');
+    end
+
+    function s = TotalScore(results)
+        not_practice = ([results.isPractice] == 0);
+        s = sum([results(not_practice).points]);
+    end
+
+    function s = BlockScore(results, isPractice, blockNum)
+        match_practice = ([results.isPractice] == isPractice);
+        match_blocknum = ([results.blockNum] == blockNum);
+        scores = [results(match_practice & match_blocknum).points];
+        s = sum(scores);
     end
 
     function textScreen(text, how_long)
