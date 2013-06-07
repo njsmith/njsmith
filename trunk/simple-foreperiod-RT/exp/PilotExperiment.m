@@ -1,4 +1,4 @@
-function PilotExperiment(subjnum, computer)
+function PilotExperiment(subjnum, mode)
 
 tic
 
@@ -11,8 +11,9 @@ params.stdDelayTime  = 0.200;
 params.nSig = 3.5;
 params.minDelayTime  = 0.050;
 
-params.meanDelayTime = params.minDelayTime + params.nSig * params.stdDelayTime;
-params.maxDelayTime  = 2*params.minDelayTime + 2*params.nSig * params.stdDelayTime;
+width = params.nSig * params.stdDelayTime;
+params.meanDelayTime = params.minDelayTime + width;
+params.maxDelayTime  = params.meanDelayTime + width;
 
 params.scoreScreenDuration = 1.000;
 params.readyScreenDuration = 0.750;
@@ -22,6 +23,7 @@ params.minResponseTime = 0.050;
 params.trialsPerPractise = 60;
 params.trialsPerBlock = 60;
 params.numberOfBlocks = 10;
+
 params.wrapChars = 70;
 
 % points
@@ -69,18 +71,23 @@ instructions2 = sprintf(instructions2, params.bonusSuccessPoints, params.bonusFa
 % GetGamepadIndices.
 % To identify a gamepad: Gamepad('GetGamepadNamesFromIndices', indices)
 input_buttons = zeros(256, 1);
-if strcmp(computer, 'test')
+if strcmp(mode(1:4), 'test')
     % Default -- keyboard
     % For some reason nothing else works on my (njs's) laptop :-( :-(
     input_device = [];
     input_buttons(KbName('space')) = 1;
-elseif strcmp(computer, 'lab-gamepad')
+    if strcmp(mode, 'test-small')
+        params.trialsPerPractise = 3;
+        params.trialsPerBlock = 5;
+        params.numberOfBlocks = 2;
+    end
+elseif strcmp(mode, 'lab-gamepad')
     input_device = Gamepad('GetGamepadIndicesFromNames', 'Logitech Dual Action');
     input_buttons([5, 6]) = 1;
     Screen('Preference', 'DefaultFontSize', 36);
     Priority(9);
 else
-    error('unknown computer');
+    error('unknown mode');
 end
 
 % Tell Psychtoolbox to start monitoring for button presses on the given
@@ -239,18 +246,19 @@ toc;
         KbQueueFlush(input_device);
         
         % now show blank screen with moving line until signal
-        targdelay = params.stdDelayTime * randn(r) + params.meanDelayTime;
-        targdelay = max(targdelay, params.minDelayTime);
-        targdelay = min(targdelay, params.maxDelayTime);
+        targdelay = -inf;
+        while targdelay < params.minDelayTime || targdelay > params.maxDelayTime
+            targdelay = params.stdDelayTime * randn(r) + params.meanDelayTime;
+        end
         trialResults.targdelay = targdelay;
         
-        [trialResults.foreperiodonset.vbl ...
-            trialResults.foreperiodonset.stimon ... 
-            trialResults.foreperiodonset.flip ...
-            trialResults.foreperiodonset.missed] = Screen('Flip', stimuliScrn);
+        [trialResults.foreperiodonset_vbl ...
+            trialResults.foreperiodonset_stimon ... 
+            trialResults.foreperiodonset_flip ...
+            trialResults.foreperiodonset_missed] = Screen('Flip', stimuliScrn);
         
-        targetTime = trialResults.foreperiodonset.stimon + targdelay;
-        progressBarLimit = trialResults.foreperiodonset.stimon + params.maxDelayTime;
+        time_zero = trialResults.foreperiodonset_stimon;
+        targetTime = trialResults.foreperiodonset_stimon + targdelay;
         jumped_gun = 0;
         resp_time = NaN;
         while 1
@@ -263,10 +271,19 @@ toc;
             end
             % Draw vertical line
             now = GetSecs();
-            x = (progressBarLimit - now) / (params.maxDelayTime);
-            Screen('DrawLines', stimuliScrn, [w*(1-x), w*(1 - x); 0, h], 3);
-            Screen('Flip', stimuliScrn);
-            if now > targetTime - ifi
+            latency = now - time_zero;
+            % Latency distribution is truncated to (minDelayTime,
+            % maxDelayTime). To keep it centered on the screen, we put x=0
+            % at latency=0, and x=max at latency=maxDelayTime +
+            % minDelayTime.
+            line_pos = w * (latency / (params.maxDelayTime + params.minDelayTime));
+            Screen('DrawLines', stimuliScrn, [line_pos, line_pos; 0, h], 3);
+            now = Screen('Flip', stimuliScrn);
+            % Attempt to round targetTime to the nearest frame, minus 1
+            % (because if we're at the targetTime - 1 frame, then we need
+            % to show the target on the next frame!)
+            if now + 1.5 * ifi > targetTime
+                trialResults.line_pos = line_pos;
                 break
             end
         end
@@ -293,16 +310,16 @@ toc;
             Screen('DrawTexture', stimuliScrn, t_too_early);
             points = params.penaltyPoints;
             Screen('Flip', stimuliScrn);
-            Beeper('low', 0.5, 0.8);
+            %Beeper('low', 0.5, 0.8);
             WaitSecs(params.penaltyTime);
         end
         % Show the end-of-trial click-to-continue screen
         textScreen(sprintf('%i points!\n\nTotal this block: %i', points, blockPoints + points), params.scoreScreenDuration);
         
-        trialResults.go_onset.vbl = stim_vbl;
-        trialResults.go_onset.stimon = stim_stimon;
-        trialResults.go_onset.flip = stim_flip;
-        trialResults.go_onset.missed = stim_missed;
+        trialResults.go_onset_vbl = stim_vbl;
+        trialResults.go_onset_stimon = stim_stimon;
+        trialResults.go_onset_flip = stim_flip;
+        trialResults.go_onset_missed = stim_missed;
         
         trialResults.resp_time = resp_time;
         trialResults.resp_latency = resp_latency;
