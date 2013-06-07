@@ -15,7 +15,7 @@ params.meanDelayTime = params.minDelayTime + params.nSig * params.stdDelayTime;
 params.maxDelayTime  = 2*params.minDelayTime + 2*params.nSig * params.stdDelayTime;
 
 params.scoreScreenDuration = 1.000;
-params.readyScreenDuration = 1.000;
+params.readyScreenDuration = 0.750;
 % If their RT is <50ms then they jumped the gun.
 params.minResponseTime = 0.050;
 
