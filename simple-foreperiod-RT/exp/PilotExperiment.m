@@ -19,9 +19,9 @@ params.readyScreenDuration = 1.000;
 % If their RT is <50ms then they jumped the gun.
 params.minResponseTime = 0.050;
 
-params.trialsPerPractise = 60;
-params.trialsPerBlock = 60;
-params.numberOfBlocks = ;
+params.trialsPerPractise = 2;
+params.trialsPerBlock = 2;
+params.numberOfBlocks = 1;
 params.wrapChars = 70;
 
 % points
@@ -29,7 +29,7 @@ params.wrapChars = 70;
 params.penaltyPoints = -5000;
 params.penaltyTime = 5;
 % normal trials
-params.normalScoreTimes = [180 250];
+params.normalScoreTimes = [0.180 0.250];
 params.normalScorePoints = [300 150];
 % speedy trials
 params.cutoffQuantile = 0.33;
@@ -169,15 +169,15 @@ toc;
             pracString = '';
             if blockNum > 1
                 prev_score = BlockScore(results, isPractice, blockNum - 1);
-                lastBlockString = sprintf('On the previous block, you earned: %i points\n', prev_score);
+                lastBlockString = sprintf('Last time, you earned: %i points\n\n', prev_score);
             else
                 lastBlockString = '';
             end
-            totalString = sprintf('Your total so far: %i points\n', TotalScore(results));
+            totalString = sprintf('Your total so far: %i points\n\n', TotalScore(results));
         end
         this_score = BlockScore(results, isPractice, blockNum);       
-        msg = sprintf(['That''s the end of%s block %i (of %i).\n' ...
-            'You earned: %i points\n%s%s' ...
+        msg = sprintf(['That''s the end of%s block %i (of %i).\n\n' ...
+            'In this block, you earned: %i points\n\n%s%s' ...
             'Take a short break and stretch!'], ...
             pracString, blockNum, totalBlocks, this_score, lastBlockString, totalString);
         textScreen(msg, 'wait');
@@ -311,13 +311,13 @@ toc;
 
     end
 
-    function points = GetPoints(respTime, trialType, params)
+    function points = GetPoints(resp_latency, trialType, params)
         if strcmp(trialType, 'regular')
             points = interp1(params.normalScoreTimes, params.normalScorePoints, ...
-                respTime, 'linear', 'extrap');
+                resp_latency, 'linear', 'extrap');
             points = max(0, points);
         elseif strcmp(trialType, 'bonus')
-            if respTime < params.cutoffTime
+            if resp_latency < params.cutoffTime
                 points = params.bonusSuccessPoints;
             else
                 points = params.bonusFailurePoints;
